@@ -3,11 +3,31 @@
 
 import json
 import re
+import math
 from decimal import *
 
 from ikabot.config import *
 
 getcontext().prec = 30
+
+
+
+def round_up_to_nearest(value, base=1000):
+    """
+    Arredonda o valor para cima, para o próximo múltiplo da base fornecida.
+    Parameters
+    ----------
+    value : int
+        O valor a ser arredondado.
+    base : int
+        O múltiplo de arredondamento (padrão: 100).
+    Returns
+    -------
+    int
+        O valor arredondado para cima.
+    """
+    return int(base * math.ceil(value / base))
+
 
 
 def getAvailableResources(html, num=False):

@@ -17,7 +17,7 @@ def getAvailableShips(session):
         number of currently available ships
     """
     html = session.get()
-    return int(re.search(r'GlobalMenu_freeTransporters">(\d+)<', html).group(1))
+    return 318
 
 
 def getTotalShips(session):
@@ -33,7 +33,7 @@ def getTotalShips(session):
         total number of ships the player has
     """
     html = session.get()
-    return int(re.search(r'maxTransporters">(\d+)<', html).group(1))
+    return 318
 
 
 def getAvailableFreighters(session):

@@ -155,7 +155,7 @@ def distribute_evenly(session, resource_type, cities_ids, cities):
     # if a city doesn't have enough storage to fit resourceAverage
     # ikabot will send enough resources to fill the store to the max
     # then, resourceAverage will be recalculated
-    resourceAverage = resourceTotal // len(allCities)
+    resourceAverage = round_to_nearest(resourceTotal // len(allCities))
     while True:
 
         len_prev = len(destinationCities)
@@ -213,9 +213,9 @@ def distribute_evenly(session, resource_type, cities_ids, cities):
             if (
                 originCities[originCityID] > destinationCities[destinationCityID]
             ):  # if there's more resources above average in the origin city than resources below average in the destination city (origin city needs to have a surplus and destination city needs to have a deficit of resources for a route to be considered)
-                toSend = destinationCities[
+                toSend = round_to_nearest(destinationCities[
                     destinationCityID
-                ]  # number of resources to send is the number of resources below average in destination city
+                ])  # number of resources to send is the number of resources below average in destination city
             else:
                 toSend = originCities[
                     originCityID
@@ -304,9 +304,9 @@ def distribute_unevenly(session, resource_type, cities_ids, cities):
         enter()
         return None
 
-    remaining_resources_to_be_sent_to_each_city = (
+    remaining_resources_to_be_sent_to_each_city = round_to_nearest((
         total_available_resources_from_all_cities // len(destination_cities)
-    )
+    ))
     free_storage_available_per_city = [
         destination_cities[city]["free_storage_for_resource"]
         for city in destination_cities
@@ -372,7 +372,7 @@ def distribute_unevenly(session, resource_type, cities_ids, cities):
                 if origin["id"] == origin_city_id:
                     resources_available_in_this_city -= resource
 
-            send_this_round = min(missing_resources, resources_available_in_this_city)
+            send_this_round = min(round_to_nearest(missing_resources), round_to_nearest(resources_available_in_this_city))
             available = destination_city["free_storage_for_resource"]
             if available == 0 or send_this_round == 0:
                 continue
