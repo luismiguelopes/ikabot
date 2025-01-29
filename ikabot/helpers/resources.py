@@ -12,7 +12,7 @@ getcontext().prec = 30
 
 
 
-def round_up_to_nearest(value, base=1000):
+def round_to_nearest(value, base=1000):
     """
     Arredonda o valor para cima, para o próximo múltiplo da base fornecida.
     Parameters
