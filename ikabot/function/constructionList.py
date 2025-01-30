@@ -669,7 +669,7 @@ def constructionList(session, event, stdin_fd, predetermined_input):
                     elif shiptype == 2:
                         useFreighters = True
                     wait_resources = True
-                    sendResourcesMenu(session, cityId, missing, useFreighters)
+                    sendResourcesMenu(session, cityId, round_to_nearest(missing), useFreighters)
             else:
                 print("\nYou have enough materials")
                 print("Proceed? [Y/n]")
