@@ -744,7 +744,7 @@ def do_attack(session, island, city, schematic, float_city=None, units_data={}):
         if float_city is not None:
             ships_needed += sum([data["ships_needed"] for data in float_city_data])
 
-        assert getTotalShips(session) >= ships_needed, "barcos insuficientes!"
+        assert getTotalShips(session) <= ships_needed, "barcos insuficientes!"
         ships_available = waitForArrival(session)
         ships_available -= ships_needed
 
