@@ -6,6 +6,7 @@ import os
 import re
 import sys
 from decimal import *
+import time
 
 from ikabot import config
 from ikabot.config import *
@@ -312,3 +313,22 @@ def getIslandsIds(session):
         island_id = city["islandId"]
         islands_ids.add(island_id)
     return list(islands_ids)
+
+
+
+def getAllCitiesInfo(session):
+    """Returns a tuple containing a list of city ids and a dictionary of cities."""
+    
+    # Get city IDs
+    ids, _ = getIdsOfCities(session)  # Assuming this returns a tuple (list of ids, city data)
+
+    # Fetch city details
+    cities = {}
+    for city_id in ids:
+        time.sleep(2)
+        html = session.get(city_url + city_id)
+        city = getCity(html)  # Extract city details
+        if city:  # Ensure we don't store None values
+            cities[city_id] = city
+
+    return cities  # Return full city dictionary

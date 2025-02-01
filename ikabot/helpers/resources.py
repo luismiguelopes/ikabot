@@ -14,19 +14,12 @@ getcontext().prec = 30
 
 def round_to_nearest(value, base=1000):
     """
-    Arredonda o valor para cima, para o próximo múltiplo da base fornecida.
-    Parameters
-    ----------
-    value : int
-        O valor a ser arredondado.
-    base : int
-        O múltiplo de arredondamento (padrão: 100).
-    Returns
-    -------
-    int
-        O valor arredondado para cima.
+    Arredonda para cima ao múltiplo mais próximo da base fornecida.
+    Se for uma lista, arredonda cada item individualmente.
     """
-    return int(base * math.ceil(value / base))
+    if isinstance(value, list):
+        return [int(base * math.ceil(v / base) - 1000) for v in value]
+    return int(base * math.ceil(value / base) - 1000)
 
 
 
