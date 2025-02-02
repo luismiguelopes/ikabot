@@ -4,7 +4,7 @@
 import os
 import re
 from decimal import *
-
+from prettytable import PrettyTable
 
 from ikabot.config import *
 from ikabot.helpers.getJson import getCity
@@ -16,7 +16,28 @@ from ikabot.helpers.resources import *
 from ikabot.helpers.varios import *
 
 
+
 getcontext().prec = 30
+
+
+def unique_names(buildings):
+    seen = {}
+    unique_names = []
+    
+    for building in buildings:
+        short_name = building.split()[0]  # Pega a primeira palavra
+        
+        if short_name in seen:
+            seen[short_name] += 1
+            unique_names.append(f"{short_name}{seen[short_name]}")  # Exemplo: Academia1, Academia2
+        else:
+            seen[short_name] = 1
+            unique_names.append(short_name)
+    
+    return unique_names
+
+
+
 
 
 def getStatus(session, event, stdin_fd, predetermined_input):
@@ -229,54 +250,75 @@ def getStatus(session, event, stdin_fd, predetermined_input):
             banner()
             print("\nBuilding summary for all cities:\n")
 
-            # Obter os dados de todas as cidades
+            # Get data from all cities
             cities = getAllCitiesInfo(session)
 
-            # Criar lista de todos os edifícios existentes
+            # Create list of all existing buildings
             building_names = set()
             for city_data in cities.values():
                 if "position" in city_data:
                     for building in city_data["position"]:
-                        if building["name"] != "empty":  # Ignorar espaços vazios
+                        if building["name"] != "empty":  # Ignore empty spaces
                             building_names.add(building["name"])
 
-            # Verificar se há edifícios para exibir
+            # Check if there are buildings to display
             if not building_names:
                 print("No buildings found in any city.")
                 enter()
                 event.set()
                 return
 
-            # Ordenar os edifícios alfabeticamente
+            # Sort Buildings ASC
             building_names = sorted(building_names)
 
-            # Criar cabeçalho da tabela
-            print("{:<20}".format("City"), end="|")
-            for building in building_names:
-                print("{:>10}".format(building), end="|")
-            print()
+            # Calculate the average of the levels of each building
+            building_levels = {building: [] for building in building_names}
+            for city_data in cities.values():
+                if "position" in city_data:
+                    for building in city_data["position"]:
+                        if building["name"] in building_levels:
+                            building_levels[building["name"]].append(building.get("level", 0))
 
-            # Preencher os dados de cada cidade
+            building_avg_levels = {
+                building: sum(levels) / len(levels) if levels else 0
+                for building, levels in building_levels.items()
+            }
+
+            # Create PrettyTable
+            table = PrettyTable()
+
+            # Set Headers (City Name + Buildings)
+            table.field_names = ["City"] + unique_names(building_names)
+
+            # Fill in the data for each city
             for city_data in cities.values():
                 city_name = city_data.get("name", "Unknown")
-                print("{:<20}".format(city_name), end="|")
-                
+                row = [city_name]
+
                 for building in building_names:
-                    level = ""  # Caso o edifício não esteja presente
+                    level = ""  # If the building is not present
                     if "position" in city_data:
                         for b in city_data["position"]:
                             if b["name"] == building:
                                 level = str(b.get("level", ""))
-                                if b.get("isBusy"):  # Se estiver em construção, adicionar "+"
+                                if b.get("isBusy"):  # If under construction, add "+"
                                     level += "+"
+                                    level = f"{bcolors.YELLOW}{level}{bcolors.ENDC}"  # Yellow
+                                # Set color based on average
+                                if b.get("level", 0) >= building_avg_levels[building]:
+                                    level = f"{bcolors.GREEN}{level}{bcolors.ENDC}"  # Green
+                                else:
+                                    level = f"{bcolors.RED}{level}{bcolors.ENDC}"  # Red
                                 break
-                    print("{:>10}".format(level), end="|")
-                print()
+                    row.append(level)
+
+                table.add_row(row)
+
+            print(table)
 
             enter()
             print("")
             event.set()
-
 
 
     except KeyboardInterrupt:
