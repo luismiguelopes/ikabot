@@ -173,7 +173,10 @@ def executeRoutes(session, routes, useFreighters=False):
                 send,
                 useFreighters,
             )
-
+            # Adiciona uma pausa aleatória após cada envio
+            sleep_time = random.randint(5, 10)  # Pausa entre 5 e 10 segundos
+            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Transport: {origin_city['name']} -> {destination_city['name']}: {send[0]}W, {send[1]}V, {send[2]}M, {send[3]}C, {send[4]}S")
+            time.sleep(sleep_time)
 
 def get_random_wait_time():
     return random.randint(0, 20) * 3
