@@ -18,8 +18,8 @@ def round_to_nearest(value, base=1000):
     Se for uma lista, arredonda cada item individualmente.
     """
     if isinstance(value, list):
-        return [int(base * math.ceil(v / base) - 1000) for v in value]
-    return int(base * math.ceil(value / base) - 1000)
+        return [int(base * math.ceil(v / base) ) for v in value]
+    return int(base * math.ceil(value / base) )
 
 
 
