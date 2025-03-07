@@ -3,8 +3,8 @@
 
 import os
 import re
+import json  # Importar o módulo json
 from decimal import *
-
 
 from ikabot.config import *
 from ikabot.helpers.getJson import getCity
@@ -15,9 +15,7 @@ from ikabot.helpers.pedirInfo import *
 from ikabot.helpers.resources import *
 from ikabot.helpers.varios import *
 
-
 getcontext().prec = 30
-
 
 def getStatus(session, event, stdin_fd, predetermined_input):
     """
@@ -83,6 +81,35 @@ def getStatus(session, event, stdin_fd, predetermined_input):
                 )
             )
 
+        # Criando um dicionário com os dados resumidos
+        status_summary = {
+            "ships": {
+                "available": int(available_ships),
+                "total": int(total_ships)
+            },
+            "resources": {
+                "available": [int(resource) for resource in total_resources],  # Convertendo Decimal para int
+                "production": [int(production) for production in total_production]  # Convertendo Decimal para int
+            },
+            "housing": {
+                "space": int(total_housing_space),
+                "citizens": int(total_citizens)
+            },
+            "gold": {
+                "total": int(total_gold),
+                "production": int(total_gold_production)
+            },
+            "wine_consumption": int(total_wine_consumption)  # Convertendo Decimal para int
+        }
+
+        # Salvando o dicionário em um arquivo JSON
+        logs_dir = "/tmp/ikalogs/"
+        if not os.path.exists(logs_dir):
+            os.makedirs(logs_dir)
+        
+        with open(os.path.join(logs_dir, "statusSummary.json"), "w") as json_file:
+            json.dump(status_summary, json_file, indent=4)
+
         print("Ships {:d}/{:d}".format(int(available_ships), int(total_ships)))
         print("\nTotal:")
         print("{:>10}".format(" "), end="|")
@@ -113,6 +140,7 @@ def getStatus(session, event, stdin_fd, predetermined_input):
             "Wine consumption: {}".format(addThousandSeparator(total_wine_consumption)),
             end="",
         )
+
 
         print("\n\nChoose an option:")
         print("(1) View details of a specific city")
@@ -222,9 +250,6 @@ def getStatus(session, event, stdin_fd, predetermined_input):
             print("")
             event.set()
 
-
-
-
         elif option == 2:
             banner()
             print("\nBuilding summary for all cities:\n")
@@ -256,11 +281,17 @@ def getStatus(session, event, stdin_fd, predetermined_input):
                 print("{:>10}".format(building), end="|")
             print()
 
+            # Estrutura de dados para o JSON
+            empire_data = {}
+
             # Preencher os dados de cada cidade
             for city_data in cities.values():
                 city_name = city_data.get("name", "Unknown")
                 print("{:<20}".format(city_name), end="|")
                 
+                # Dicionário para armazenar os níveis dos edifícios da cidade
+                city_buildings = {}
+
                 for building in building_names:
                     level = ""  # Caso o edifício não esteja presente
                     if "position" in city_data:
@@ -271,13 +302,27 @@ def getStatus(session, event, stdin_fd, predetermined_input):
                                     level += "+"
                                 break
                     print("{:>10}".format(level), end="|")
+                    city_buildings[building] = level
                 print()
+
+                # Adicionar os dados da cidade ao império
+                empire_data[city_name] = city_buildings
+
+            # Gravar os dados no ficheiro JSON
+            logs_dir = "/tmp/ikalogs/"
+       
+
+            if not os.path.exists(logs_dir):
+                os.makedirs(logs_dir)
+            empire_json_path = os.path.join(logs_dir, "empire.json")
+            with open(empire_json_path, "w") as json_file:
+                json.dump(empire_data, json_file, indent=4)
+
+            print(f"\nData saved to {empire_json_path}")
 
             enter()
             print("")
             event.set()
-
-
 
     except KeyboardInterrupt:
         event.set()
