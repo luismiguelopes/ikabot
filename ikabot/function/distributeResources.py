@@ -16,7 +16,6 @@ from ikabot.helpers.process import set_child_mode
 from ikabot.helpers.resources import *
 from ikabot.helpers.signals import setInfoSignal
 from ikabot.helpers.varios import addThousandSeparator
-from ikabot.helpers.logging import log_transport
 
 def distributeResources(session, event, stdin_fd, predetermined_input):
     """
