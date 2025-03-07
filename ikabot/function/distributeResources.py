@@ -6,7 +6,6 @@ import math
 import random
 import time
 
-
 from ikabot.config import *
 from ikabot.helpers.botComm import *
 from ikabot.helpers.getJson import getCity
@@ -17,7 +16,7 @@ from ikabot.helpers.process import set_child_mode
 from ikabot.helpers.resources import *
 from ikabot.helpers.signals import setInfoSignal
 from ikabot.helpers.varios import addThousandSeparator
-
+from ikabot.helpers.logging import log_transport
 
 def distributeResources(session, event, stdin_fd, predetermined_input):
     """
@@ -108,6 +107,7 @@ def distributeResources(session, event, stdin_fd, predetermined_input):
                     materials_names[resource],
                 )
             )  # displays all routes to be executed in console
+            log_transport(f"{route[0]['name']} -> {route[1]['name']}: {route[resource + 3]} {materials_names[resource]}")
 
         print("\nProceed? [Y/n]")
         rta = read(values=["y", "Y", "n", "N", ""])
@@ -132,7 +132,6 @@ def distributeResources(session, event, stdin_fd, predetermined_input):
         sendToBot(session, msg)  # sends message to telegram bot
     finally:
         session.logout()
-
 
 def distribute_evenly(session, resource_type, cities_ids, cities):
     """
@@ -210,7 +209,6 @@ def distribute_evenly(session, resource_type, cities_ids, cities):
                 originCities[originCityID] = 0
 
     return routes
-
 
 def distribute_unevenly(session, resource_type, cities_ids, cities):
     """
@@ -359,72 +357,64 @@ def distribute_unevenly(session, resource_type, cities_ids, cities):
 
     return routes
 
-
 def distribute_combined(session, resource_type, cities_ids, cities):
     """
-    Parameters
-    ----------
-    session : ikabot.web.session.Session
-    resource_type : int
-    cities_ids : list
-    cities : dict
+    Distribui recursos de forma que todas as cidades de destino terminem com a mesma quantidade,
+    considerando os recursos já existentes e o espaço livre, e corrigindo o problema de exceder
+    os recursos disponíveis na cidade de origem.  Adiciona pausa aleatória entre transportes.
     """
     total_available_resources = 0
     origin_cities = {}
     destination_cities = {}
 
-    # First, identify origin and destination cities
+    # Identifica cidades de origem e destino
     for city_id in cities_ids:
         city = cities[city_id]
         if city["tradegood"] == resource_type:
-            # This city produces the resource
+            # Cidade produtora
             html = session.get(city_url + city_id)
             city = getCity(html)
-            if resource_type == 1:  # wine
+
+            if resource_type == 1:  # vinho
                 city["available_amount_of_resource"] = (
                     city["availableResources"][resource_type]
                     - city["wineConsumptionPerHour"]
                     - 1
                 )
+                city["available_amount_of_resource"] = max(0, city["available_amount_of_resource"])
             else:
                 city["available_amount_of_resource"] = city["availableResources"][resource_type]
-            if city["available_amount_of_resource"] < 0:
-                city["available_amount_of_resource"] = 0
+
             total_available_resources += city["available_amount_of_resource"]
             origin_cities[city_id] = city
         else:
-            # This city does not produce the resource
+            # Cidade não produtora
             html = session.get(city_url + city_id)
             city = getCity(html)
+
             city["free_storage_for_resource"] = city["freeSpaceForResources"][resource_type]
-            # Ignore cities that need less than 10000 resources
-            if city["free_storage_for_resource"] >= 10000:
+
+            if city["free_storage_for_resource"] >= 1000:  # Limiar
                 destination_cities[city_id] = city
 
-    # Check if there are resources to send or cities to send to
     if total_available_resources <= 0:
-        print("\nThere are no resources to send.")
-        enter()
         return None
     if len(destination_cities) == 0:
-        print("\nThere is no space available to send resources.")
-        enter()
         return None
 
-    # Calculate the average resources to send to each city
-    average_resources_per_city = total_available_resources // len(destination_cities)
+    # 1. Calcular a Quantidade Total Necessária
+    total_resources_needed = sum(city["availableResources"][resource_type] for city in destination_cities.values())
 
-    # Distribute resources evenly, ensuring no city gets more than it needs
+    # 2. Calcular a Média Desejada (incluindo os recursos da cidade de origem)
+    total_resources_available = total_available_resources + total_resources_needed
+    average_resources_per_city = total_resources_available // len(destination_cities)
+
     routes = []
-    consolidated_routes = {}  # To avoid multiple shipments to the same city
+    consolidated_routes = {}
 
     for destination_city_id in destination_cities:
         destination_city = destination_cities[destination_city_id]
-        missing_resources = min(average_resources_per_city, destination_city["free_storage_for_resource"])
-        if missing_resources < 10000:
-            continue  # Skip cities that need less than 10000 resources
 
-        # Initialize the consolidated route for this destination city
         if destination_city_id not in consolidated_routes:
             consolidated_routes[destination_city_id] = {
                 "destination": destination_city,
@@ -432,45 +422,56 @@ def distribute_combined(session, resource_type, cities_ids, cities):
                 "origin_cities": []
             }
 
+        # 3. Calcular a Quantidade a Enviar
+        amount_to_send = average_resources_per_city - destination_city["availableResources"][resource_type]
+
+        # Arredondar para baixo para o múltiplo de 1000 mais próximo
+        amount_to_send = (amount_to_send // 1000) * 1000
+
+        if amount_to_send < 1000:  # Limiar
+            continue
+
+        missing_resources = amount_to_send
+
         for origin_city_id in origin_cities:
             if missing_resources == 0:
                 break
 
             origin_city = origin_cities[origin_city_id]
             resources_available = origin_city["available_amount_of_resource"]
-            if resources_available <= 0:
+
+            # ***VERIFICAÇÃO IMPORTANTE***
+            total_sent_from_origin = sum(
+                sent
+                for dest_id, data in consolidated_routes.items()
+                if dest_id != destination_city_id
+                for origin, sent in data["origin_cities"]
+                if origin["id"] == origin_city_id
+            )
+
+            if resources_available - total_sent_from_origin <= 0:
                 continue
 
-            # Ensure we don't exceed the total available resources in the origin city
-            send_this_round = min(missing_resources, resources_available)
-            send_this_round = math.floor(send_this_round / 1000) * 1000  # Round down to the nearest 1000
-            if send_this_round == 0:
+            send_this_round = min(missing_resources, resources_available - total_sent_from_origin)
+
+            if send_this_round < 1000:
                 continue
 
-            # Update the consolidated route
             consolidated_routes[destination_city_id]["total_resources"] += send_this_round
             consolidated_routes[destination_city_id]["origin_cities"].append((origin_city, send_this_round))
 
             origin_city["available_amount_of_resource"] -= send_this_round
             missing_resources -= send_this_round
 
-    # Create routes from the consolidated data
     for destination_city_id, data in consolidated_routes.items():
         destination_city = data["destination"]
         total_resources = data["total_resources"]
         origin_cities_list = data["origin_cities"]
 
-        # Ensure the total resources sent do not exceed the available resources in the origin city
-        total_sent = sum([send_this_round for _, send_this_round in origin_cities_list])
-        if total_sent > origin_cities_list[0][0]["available_amount_of_resource"]:
-            # Adjust the total resources to match the available resources
-            total_resources = origin_cities_list[0][0]["available_amount_of_resource"]
-            total_resources = math.floor(total_resources / 1000) * 1000  # Round down to the nearest 1000
-
-        # Create a single route for the destination city
-        toSendArr = [0] * len(materials_names)
-        toSendArr[resource_type] = total_resources
-        route = (origin_cities_list[0][0], destination_city, destination_city["islandId"], *toSendArr)
-        routes.append(route)
+        if origin_cities_list:
+            toSendArr = [0] * len(materials_names)
+            toSendArr[resource_type] = total_resources
+            route = (origin_cities_list[0][0], destination_city, destination_city["islandId"], *toSendArr)
+            routes.append(route)
 
     return routes
