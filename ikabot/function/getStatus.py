@@ -3,8 +3,8 @@
 
 import os
 import re
+import json  # Importar o módulo json
 from decimal import *
-from prettytable import PrettyTable
 
 from ikabot.config import *
 from ikabot.helpers.getJson import getCity
@@ -15,30 +15,7 @@ from ikabot.helpers.pedirInfo import *
 from ikabot.helpers.resources import *
 from ikabot.helpers.varios import *
 
-
-
 getcontext().prec = 30
-
-
-def unique_names(buildings):
-    seen = {}
-    unique_names = []
-    
-    for building in buildings:
-        short_name = building.split()[0]  # Pega a primeira palavra
-        
-        if short_name in seen:
-            seen[short_name] += 1
-            unique_names.append(f"{short_name}{seen[short_name]}")  # Exemplo: Academia1, Academia2
-        else:
-            seen[short_name] = 1
-            unique_names.append(short_name)
-    
-    return unique_names
-
-
-
-
 
 def getStatus(session, event, stdin_fd, predetermined_input):
     """
@@ -104,6 +81,35 @@ def getStatus(session, event, stdin_fd, predetermined_input):
                 )
             )
 
+        # Criando um dicionário com os dados resumidos
+        status_summary = {
+            "ships": {
+                "available": int(available_ships),
+                "total": int(total_ships)
+            },
+            "resources": {
+                "available": [int(resource) for resource in total_resources],  # Convertendo Decimal para int
+                "production": [int(production) for production in total_production]  # Convertendo Decimal para int
+            },
+            "housing": {
+                "space": int(total_housing_space),
+                "citizens": int(total_citizens)
+            },
+            "gold": {
+                "total": int(total_gold),
+                "production": int(total_gold_production)
+            },
+            "wine_consumption": int(total_wine_consumption)  # Convertendo Decimal para int
+        }
+
+        # Salvando o dicionário em um arquivo JSON
+        logs_dir = "/tmp/ikalogs/"
+        if not os.path.exists(logs_dir):
+            os.makedirs(logs_dir)
+        
+        with open(os.path.join(logs_dir, "statusSummary.json"), "w") as json_file:
+            json.dump(status_summary, json_file, indent=4)
+
         print("Ships {:d}/{:d}".format(int(available_ships), int(total_ships)))
         print("\nTotal:")
         print("{:>10}".format(" "), end="|")
@@ -134,6 +140,7 @@ def getStatus(session, event, stdin_fd, predetermined_input):
             "Wine consumption: {}".format(addThousandSeparator(total_wine_consumption)),
             end="",
         )
+
 
         print("\n\nChoose an option:")
         print("(1) View details of a specific city")
@@ -243,83 +250,79 @@ def getStatus(session, event, stdin_fd, predetermined_input):
             print("")
             event.set()
 
-
-
-
         elif option == 2:
             banner()
             print("\nBuilding summary for all cities:\n")
 
-            # Get data from all cities
+            # Obter os dados de todas as cidades
             cities = getAllCitiesInfo(session)
 
-            # Create list of all existing buildings
+            # Criar lista de todos os edifícios existentes
             building_names = set()
             for city_data in cities.values():
                 if "position" in city_data:
                     for building in city_data["position"]:
-                        if building["name"] != "empty":  # Ignore empty spaces
+                        if building["name"] != "empty":  # Ignorar espaços vazios
                             building_names.add(building["name"])
 
-            # Check if there are buildings to display
+            # Verificar se há edifícios para exibir
             if not building_names:
                 print("No buildings found in any city.")
                 enter()
                 event.set()
                 return
 
-            # Sort Buildings ASC
+            # Ordenar os edifícios alfabeticamente
             building_names = sorted(building_names)
 
-            # Calculate the average of the levels of each building
-            building_levels = {building: [] for building in building_names}
-            for city_data in cities.values():
-                if "position" in city_data:
-                    for building in city_data["position"]:
-                        if building["name"] in building_levels:
-                            building_levels[building["name"]].append(building.get("level", 0))
+            # Criar cabeçalho da tabela
+            print("{:<20}".format("City"), end="|")
+            for building in building_names:
+                print("{:>10}".format(building), end="|")
+            print()
 
-            building_avg_levels = {
-                building: sum(levels) / len(levels) if levels else 0
-                for building, levels in building_levels.items()
-            }
+            # Estrutura de dados para o JSON
+            empire_data = {}
 
-            # Create PrettyTable
-            table = PrettyTable()
-
-            # Set Headers (City Name + Buildings)
-            table.field_names = ["City"] + unique_names(building_names)
-
-            # Fill in the data for each city
+            # Preencher os dados de cada cidade
             for city_data in cities.values():
                 city_name = city_data.get("name", "Unknown")
-                row = [city_name]
+                print("{:<20}".format(city_name), end="|")
+                
+                # Dicionário para armazenar os níveis dos edifícios da cidade
+                city_buildings = {}
 
                 for building in building_names:
-                    level = ""  # If the building is not present
+                    level = ""  # Caso o edifício não esteja presente
                     if "position" in city_data:
                         for b in city_data["position"]:
                             if b["name"] == building:
                                 level = str(b.get("level", ""))
-                                if b.get("isBusy"):  # If under construction, add "+"
+                                if b.get("isBusy"):  # Se estiver em construção, adicionar "+"
                                     level += "+"
-                                    level = f"{bcolors.YELLOW}{level}{bcolors.ENDC}"  # Yellow
-                                # Set color based on average
-                                if b.get("level", 0) >= building_avg_levels[building]:
-                                    level = f"{bcolors.GREEN}{level}{bcolors.ENDC}"  # Green
-                                else:
-                                    level = f"{bcolors.RED}{level}{bcolors.ENDC}"  # Red
                                 break
-                    row.append(level)
+                    print("{:>10}".format(level), end="|")
+                    city_buildings[building] = level
+                print()
 
-                table.add_row(row)
+                # Adicionar os dados da cidade ao império
+                empire_data[city_name] = city_buildings
 
-            print(table)
+            # Gravar os dados no ficheiro JSON
+            logs_dir = "/tmp/ikalogs/"
+       
+
+            if not os.path.exists(logs_dir):
+                os.makedirs(logs_dir)
+            empire_json_path = os.path.join(logs_dir, "empire.json")
+            with open(empire_json_path, "w") as json_file:
+                json.dump(empire_data, json_file, indent=4)
+
+            print(f"\nData saved to {empire_json_path}")
 
             enter()
             print("")
             event.set()
-
 
     except KeyboardInterrupt:
         event.set()
