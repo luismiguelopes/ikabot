@@ -105,9 +105,7 @@ def distributeResources(session, event, stdin_fd, predetermined_input):
                     route[resource + 3],
                     materials_names[resource],
                 )
-            )  # displays all routes to be executed in console
-            log_transport(f"{route[0]['name']} -> {route[1]['name']}: {route[resource + 3]} {materials_names[resource]}")
-
+            )
         print("\nProceed? [Y/n]")
         rta = read(values=["y", "Y", "n", "N", ""])
         if rta.lower() == "n":
