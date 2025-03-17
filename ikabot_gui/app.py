@@ -16,6 +16,8 @@ def get_last_modified_date(filepath):
         return time.strftime("%d/%m/%Y %H:%M:%S", time.localtime(modified_time))
     return "Desconhecida"
 
+RESOURCES_JSON_PATH = "/tmp/ikalogs/resources.json"
+
 @app.route("/")
 def index():
     # Verifica se o ficheiro empire.json existe
@@ -26,6 +28,10 @@ def index():
     if not os.path.exists(STATUS_SUMMARY_JSON_PATH):
         return "Ficheiro statusSummary.json não encontrado!", 404
 
+    # Verifica se o ficheiro resources.json existe
+    if not os.path.exists(RESOURCES_JSON_PATH):
+        return "Ficheiro resources.json não encontrado!", 404
+
     # Carrega os dados do ficheiro empire.json
     with open(EMPIRE_JSON_PATH, "r") as file:
         empire_data = json.load(file)
@@ -34,17 +40,22 @@ def index():
     with open(STATUS_SUMMARY_JSON_PATH, "r") as file:
         status_summary = json.load(file)
 
+    # Carrega os dados do ficheiro resources.json
+    with open(RESOURCES_JSON_PATH, "r") as file:
+        resources_data = json.load(file)
+
     # Obtém a última modificação do empire.json
     last_updated = get_last_modified_date(EMPIRE_JSON_PATH)
 
     # Nomes dos materiais em inglês (ajuste conforme necessário)
-    materials_names_english = ["Wood", "Wine", "Marble", "Crystal", "Sulfur"]
+    materials_names_english = ["Wood", "Wine", "Marble", "Cristal", "Sulfur"]
 
     # Passa os dados e a última atualização para o template
     return render_template(
         "index.html",
         empire_data=empire_data,
         status_summary=status_summary,
+        resources_data=resources_data,
         last_updated=last_updated,
         materials_names_english=materials_names_english,
     )

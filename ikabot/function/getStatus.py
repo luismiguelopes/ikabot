@@ -141,11 +141,11 @@ def getStatus(session, event, stdin_fd, predetermined_input):
             end="",
         )
 
-
-        print("\n\nChoose an option:")
+        print("\nChoose an option:")
         print("(1) View details of a specific city")
         print("(2) View building summary for all cities")
-        option = read(min=1, max=2, digit=True)
+        print("(3) View resources summary for all cities")
+        option = read(min=1, max=3, digit=True)
 
         if option == 1:
             print("\nOf which city do you want to see the state?")
@@ -319,6 +319,63 @@ def getStatus(session, event, stdin_fd, predetermined_input):
                 json.dump(empire_data, json_file, indent=4)
 
             print(f"\nData saved to {empire_json_path}")
+
+            enter()
+            print("")
+            event.set()
+
+        elif option == 3:
+            banner()
+            print("\nResources summary for all cities:\n")
+
+            # Obter os dados de todas as cidades
+            cities = getAllCitiesInfo(session)
+
+            # Criar lista de todos os recursos
+            resource_names = materials_names_english
+
+            # Verificar se há cidades para exibir
+            if not cities:
+                print("No cities found.")
+                enter()
+                event.set()
+                return
+
+            # Criar cabeçalho da tabela
+            print("{:<20}".format("City"), end="|")
+            for resource in resource_names:
+                print("{:>10}".format(resource), end="|")
+            print()
+
+            # Estrutura de dados para o JSON
+            resources_data = {}
+
+            # Preencher os dados de cada cidade
+            for city_data in cities.values():
+                city_name = city_data.get("name", "Unknown")
+                print("{:<20}".format(city_name), end="|")
+
+                # Dicionário para armazenar os recursos da cidade
+                city_resources = {}
+
+                for i, resource in enumerate(resource_names):
+                    resource_value = city_data["availableResources"][i]
+                    print("{:>10}".format(addThousandSeparator(resource_value)), end="|")
+                    city_resources[resource] = resource_value
+                print()
+
+                # Adicionar os dados da cidade ao dicionário de recursos
+                resources_data[city_name] = city_resources
+
+            # Gravar os dados no ficheiro JSON
+            logs_dir = "/tmp/ikalogs/"
+            if not os.path.exists(logs_dir):
+                os.makedirs(logs_dir)
+            resources_json_path = os.path.join(logs_dir, "resources.json")
+            with open(resources_json_path, "w") as json_file:
+                json.dump(resources_data, json_file, indent=4)
+
+            print(f"\nData saved to {resources_json_path}")
 
             enter()
             print("")
