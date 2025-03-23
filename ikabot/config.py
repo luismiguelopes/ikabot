@@ -32,8 +32,8 @@ ikaFile = ".ikabot"
 city_url = "view=city&cityId="
 island_url = "view=island&islandId="
 prompt = " >>  "
-materials_names = ["Wood", "Wine", "Marble", "Cristal", "Sulfur"]
-materials_names_english = ["Wood", "Wine", "Marble", "Cristal", "Sulfur"]
+materials_names = ["Madeira", "Vinho", "Mármore", "Cristal", "Enxofre"]
+materials_names_english = ["Madeira", "Vinho", "Mármore", "Cristal", "Enxofre"]
 miracle_names_english = [
     "",
     "Hephaestus' Forge",

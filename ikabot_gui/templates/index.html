@@ -241,7 +241,7 @@
                             <tr class="resource-city-row">
                                 <td><strong>{{ city }}</strong></td>
                                 {% for resource in materials_names_english %}
-                                    <td class="resource-data-cell">{{ resources[resource] }}</td>
+                                    <td class="resource-data-cell">{{ "{:,.0f}".format(resources[resource]).replace(",", " ") }}</td>
                                 {% endfor %}
                             </tr>
                         {% endfor %}

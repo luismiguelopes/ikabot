@@ -48,7 +48,7 @@ def index():
     last_updated = get_last_modified_date(EMPIRE_JSON_PATH)
 
     # Nomes dos materiais em inglês (ajuste conforme necessário)
-    materials_names_english = ["Wood", "Wine", "Marble", "Cristal", "Sulfur"]
+    materials_names_english = ["Madeira", "Vinho", "Mármore", "Cristal", "Enxofre"]
 
     # Passa os dados e a última atualização para o template
     return render_template(
