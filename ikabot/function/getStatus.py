@@ -42,6 +42,7 @@ def getStatus(session, event, stdin_fd, predetermined_input):
         total_resources = [0] * len(materials_names)
         total_production = [0] * len(materials_names)
         total_wine_consumption = 0
+        city_population = {}
         housing_space = 0
         citizens = 0
         total_housing_space = 0
@@ -62,6 +63,9 @@ def getStatus(session, event, stdin_fd, predetermined_input):
             total_production[typeGood] += good * 3600
             total_wine_consumption += json_data["wineSpendings"]
             housing_space = int(json_data["currentResources"]["population"])
+            city_population[id] = {
+                "housing_space": housing_space
+            }
             citizens = int(json_data["currentResources"]["citizens"])
             total_housing_space += housing_space
             total_citizens += citizens
@@ -127,7 +131,7 @@ def getStatus(session, event, stdin_fd, predetermined_input):
         print(
             "Housing Space: {}, Citizens: {}".format(
                 addThousandSeparator(total_housing_space),
-                addThousandSeparator(citizens),
+                addThousandSeparator(total_citizens),
             )
         )
         print(
@@ -141,21 +145,69 @@ def getStatus(session, event, stdin_fd, predetermined_input):
             end="",
         )
 
-        print("\nChoose an option:")
-        print("(1) View details of a specific city")
-        print("(2) View building summary for all cities")
-        print("(3) View resources summary for all cities")
-        option = read(min=1, max=3, digit=True)
+        print("\nOf which city do you want to see the state?")
+        city = chooseCity(session)
+        city_id = city['id']
+        banner()
 
-        if option == 1:
-            print("\nOf which city do you want to see the state?")
-            city = chooseCity(session)
-            banner()
+        (wood, good, typeGood) = getProductionPerHour(session, city["id"])
+        print(
+            "\033[1m{}{}{}".format(
+                color_arr[int(typeGood)], city["cityName"], color_arr[0]
+            )
+        )
 
-            (wood, good, typeGood) = getProductionPerSecond(session, city["id"])
+        resources = city["availableResources"]
+        storageCapacity = city["storageCapacity"]
+        citizens = city["freeCitizens"]
+        housing_space = city_population[city_id]["housing_space"]
+        color_resources = []
+        for i in range(len(materials_names)):
+            if resources[i] == storageCapacity:
+                color_resources.append(bcolors.RED)
+            else:
+                color_resources.append(bcolors.ENDC)
+        print("Population:")
+        print(
+            "{}: {} {}: {}".format(
+                "Housing space",
+                addThousandSeparator(housing_space),
+                "Citizens",
+                addThousandSeparator(citizens),
+            )
+        )
+        print("Storage: {}".format(addThousandSeparator(storageCapacity)))
+        print("Resources:")
+        for i in range(len(materials_names)):
             print(
-                "\033[1m{}{}{}".format(
-                    color_arr[int(typeGood)], city["cityName"], color_arr[0]
+                "{} {}{}{} ".format(
+                    materials_names[i],
+                    color_resources[i],
+                    addThousandSeparator(resources[i]),
+                    bcolors.ENDC,
+                ),
+                end="",
+            )
+        print("")
+
+        print("Production:")
+        print(
+            "{}: {} {}: {}".format(
+                materials_names[0],
+                addThousandSeparator(wood),
+                materials_names[typeGood],
+                addThousandSeparator(good),
+            )
+        )
+
+        hasTavern = "tavern" in [building["building"] for building in city["position"]]
+        if hasTavern:
+            consumption_per_hour = city["wineConsumptionPerHour"]
+            if consumption_per_hour == 0:
+                print(
+                    "{}{}Does not consume wine!{}".format(
+                        bcolors.RED, bcolors.BOLD, bcolors.ENDC
+                    )
                 )
             )
 
